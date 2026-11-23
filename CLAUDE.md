@@ -11,24 +11,39 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
 - 고객 화면 디자인: **B안(구미 안내형)** 확정 — 단계 막대(번호 알려 주기 → 연결 허용 → 기사님이 해결) + 구미 말풍선. 화면 3개: 첫 화면 / 연결 중(경과 시간·할 수 있는 일·빨간 "원격 끝내기") / 끝난 화면. 시안: https://claude.ai/artifact/3bgxoMjNvYMgXspx5z3zkc (색: 바탕 #111318, 카드 #1c1f26, 선 #2b303b, 글자 #e9ecf2, 보조 #9aa3b2, 강조 #3fb27f)
 - 접속번호: **6자리 숫자**(예: 482 913), 1회용 비밀번호도 **숫자 6자리**. 근거: rustdesk-server는 6자 미만 ID를 거절(rendezvous_server.rs `id.len() < 6`), 번호는 PC uuid에 묶임. 숫자 비밀번호는 원래 옵션 `allow-numeric-one-time-password` + `temporary-password-length`.
 - 기사님 쪽은 원래 RustDesk 화면 그대로.
+- 앱 이름·기본 설정은 RDGen 방식 `custom_.txt`(exe 옆, base64 JSON)로 넣는다: app-name=GunggumiRemote, conn-type=incoming(받기 전용=고객용), default-settings(temporary-password-length=6, allow-numeric-one-time-password=Y). 서명 검사는 `.github/gunggumi/patch_gunggumi.py`가 빌드 때 지움(RDGen allowCustom.py와 같음).
+- 화면 문장 속 "RustDesk"는 `src/lang.rs` translate()가 APP_NAME으로 바꿔 준다 → 언어 파일은 원본 그대로 둔다.
+- 접속번호 6자리: patch_gunggumi.py가 hbb_common `get_auto_id()`·`update_id()`를 무작위 100000~999999로 바꿈. 서버가 UUID_MISMATCH를 보내면 원래 코드(rendezvous_mediator.rs handle_uuid_mismatch)가 update_id()로 새 번호를 뽑는다.
+- B안 화면: `flutter/lib/desktop/widgets/gunggumi_ui.dart`. 첫 화면은 desktop_home_page.dart(받기 전용일 때), 연결 중·끝난 화면은 연결 관리(CM) 창 server_page.dart. CM 창은 Windows에서 별도 프로세스(--cm)라 연결 상태는 CM 창에서만 안다.
+- 빌드는 Windows x64만(flutter-build.yml에서 다른 작업 if: false). 결과 파일 이름 GunggumiRemote-<버전>-x86_64.exe/.msi.
+- 시험 방법: 직원 PC에서 exe 실행 → `%AppData%\GunggumiRemote\log\GunggumiRemote_rCURRENT.log`에 "start rendezvous mediator of gunggumi.iptime.org"와 Latency 줄, 설정 `GunggumiRemote.toml`의 key_confirmed = true 확인. 기사님 쪽은 서버가 박힌 이전 빌드 rustdesk-1.5.3-x86_64.exe를 `--connect <번호> --password <비밀번호>`로 실행.
 
 ## 실패한 것과 원인
 - GitHub 비밀값만 넣으면 서버가 박힌다고 봤음 → 공용 서버(rs-ny.rustdesk.com)에 붙음 → 지금 소스는 그 값을 읽지 않음(playground.yml만 사용). 해결: flutter-build.yml Windows 작업에 "Set Gunggumi server" 단계 추가(libs/hbb_common/src/config.rs를 sed로 교체, 커밋 023719e).
 - master에 push하면 CI·Full Flutter CI가 저절로 돌아 실행 칸을 잡아먹음 → push 직후 그 두 run을 취소한다.
-- nightly는 맥·안드로이드·리눅스까지 다 빌드해서 Windows가 늦게 시작됨(40~60분).
+- nightly는 맥·안드로이드·리눅스까지 다 빌드해서 Windows가 늦게 시작됨 → Windows x64만 남김(커밋 b8c19aa). 그래도 한 번에 약 55분(vcpkg·Rust 컴파일이 대부분).
+- 언어 파일을 sed `s|RustDesk|..|`(줄당 첫 번째)로 바꿈 → 번역 키 쪽이 먼저 바뀌어 번역이 안 나옴("Show RustDesk" 키가 사라짐) → 원인: 키와 값이 같은 줄. 해결: 언어 파일은 원본으로 되돌리고 APP_NAME만 바꿈(translate()가 치환).
+- 하단 "자신만의 서버를 설정해 주세요"로 서버 연결을 판정함 → 서버를 박아도 계속 뜸 → 원인: using_public_server()가 custom-rendezvous-server 옵션만 봄. 해결: RDGen처럼 안내를 끄고(connection_page.dart), 서버 확인은 로그·key_confirmed로 한다.
+- B안 끝난 화면을 고객 "원격 끝내기" 때만 띄움 → 기사님 쪽이 끊으면 CM 창이 6초 뒤 그냥 꺼짐 → 원인: 기사님이 끊으면 연결이 '끊김 표시'가 아니라 목록에서 삭제(close=true)됨. 해결: server_model.dart onClientRemove에서 허용된 연결이 지워질 때 GgSession.ended().
+- 같은 PC에서 기사님 쪽으로 자기 자신에 접속해 시험하면 내 마우스가 원격 입력으로 되돌아가 CM 창이 "원격 조작 차단"(buildRemoteBlock)에 걸림 → 단추 시험은 다른 PC에서 접속해서 한다. 또 2026-11-24 시험 때 접속 직후 "Windows 보안"(PickerHost) 투명 창이 CM 창 위를 덮고 있었음(원인 미확인).
+- 이전 공용 빌드를 돌린 PC는 %AppData%\RustDesk에 rs-ny 설정이 남아 시작 직후 NAT 검사가 rs-ny로 감 → 앱 이름을 바꿔 설정 폴더가 새로 생기면서 사라짐.
 
 ## 지켜야 할 규칙
 - 바꾸기 전에 RDGen·원본 소스에서 해당 위치를 먼저 찾고, 같은 방식으로 바꾼다.
 - "됩니다"는 실제 빌드 exe를 받아 확인한 뒤에만 말한다(파일 정보·실행 화면·서버 연결).
-- 하단에 "자신만의 서버를 설정해 주세요" 문구가 보이면 공용 서버에 붙은 것 = 실패.
+- 서버 연결 판정은 하단 문구가 아니라 로그(gunggumi.iptime.org 등록·Latency)와 key_confirmed = true로 한다.
+- 언어 파일(src/lang/*.rs)은 건드리지 않는다. 이름은 APP_NAME(custom_.txt app-name)으로만 바꾼다.
+- Flutter 코드는 이 PC에서 컴파일 검사가 안 됨(Flutter SDK 없음) → 화면 변경은 따로 커밋·빌드해서 다른 작업 확인을 막지 않게 한다.
 - 비밀번호·키 값은 이 노트·커밋에 적지 않는다(비밀값 이름만).
 - AGPL: 저장소는 공개 유지.
 
+## 확인된 것 (exe 받아 실행)
+- run 45210416802: GunggumiRemote-1.5.3-x86_64.exe, 설정 폴더 %AppData%\GunggumiRemote, 접속번호 6자리, 숫자 6자리 1회용 비밀번호, gunggumi.iptime.org 등록(key_confirmed), 방패 아이콘, 안내 문장 속 이름 GunggumiRemote.
+- run 45221407440: B안 첫 화면, 연결 중 화면(경과 시간·할 수 있는 일·빨간 단추) 표시. 기사님 쪽 접속(rustdesk --connect) 성공.
+
 ## 다음 할 일
-1. 빌드 run 45202110553(커밋 023719e) 결과 확인 → exe 받아 실행 → 하단 문구가 사라지고 ID가 뜨는지, 창 아이콘이 방패인지 확인.
-2. 남은 이름 정리: 설정 폴더가 아직 %AppData%의 RustDesk(hbb_common APP_NAME), 안내 문장 속 "RustDesk" 잔여(sed가 줄당 첫 번째만 바꿈), 내려받는 파일 이름 rustdesk-1.5.3-*.exe.
-3. 접속번호 6자리: hbb_common config.rs `get_auto_id()`를 무작위 6자리로, 서버가 UUID_MISMATCH로 거절하면 새 번호로 재시도.
-4. 숫자 6자리 1회용 비밀번호를 기본값으로.
-5. B안 화면을 Flutter 데스크톱 홈 화면(flutter/lib/desktop/pages/desktop_home_page.dart 등)에 입히기 — 연결 중·끝난 화면 포함.
-6. 테스트 끝나면 flutter-nightly.yml의 매일 자동 빌드(cron) 끄기, 필요 없는 플랫폼 빌드 빼기.
-7. 직원 PC 시험(서버 gunggumi.iptime.org) — 고객 배포는 아직 안 함.
+1. 끝난 화면 수정본 빌드 확인: 기사님 쪽이 끊을 때 끝난 화면이 뜨는지.
+2. 다른 PC(직원 PC)에서 접속해 고객 쪽 "원격 끝내기" 단추 → 끝난 화면 → "닫기" 시험(같은 PC 자기 접속으로는 단추 시험 불가).
+3. 허용 전(허용/거절) 창은 아직 원래 RustDesk 화면 — B안 "2 연결 허용" 모양으로 바꿀지 결정.
+4. 첫 화면 아래 "설치하기" 분홍 카드·상태 줄을 B안 색에 맞출지 결정. 설치(MSI)판은 시험 안 함.
+5. 직원 PC 시험 — 고객 배포는 아직 안 함. 코드 서명 없음(NotSigned).

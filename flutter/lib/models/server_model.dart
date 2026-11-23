@@ -716,6 +716,10 @@ class ServerModel with ChangeNotifier {
         final index = _clients.indexWhere((client) => client.id == id);
         if (index >= 0) {
           if (close) {
+            // 궁구미 원격: 기사님 쪽에서 끊어도(허용된 연결이 지워질 때) 끝난 화면을 보여 줌
+            if (desktopType == DesktopType.cm && _clients[index].authorized) {
+              GgSession.ended();
+            }
             _clients.removeAt(index);
             tabController.remove(index);
           } else {
