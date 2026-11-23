@@ -133,7 +133,9 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
             if (!isIncomingOnly) startServiceWidget(),
             // ready && public
             // No need to show the guide if is custom client.
-            if (!isIncomingOnly) setupServerWidget(),
+            // 궁구미 원격: 서버를 프로그램에 박아 넣어서 이 안내는 틀린 말이 됨
+            // (custom-rendezvous-server 옵션만 보고 판단). RDGen removeSetupServerTip.diff와 같음.
+            //if (!isIncomingOnly) setupServerWidget(),
           ],
         );
 
