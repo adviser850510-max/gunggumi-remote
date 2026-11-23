@@ -24,6 +24,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
 import '../widgets/button.dart';
+import '../widgets/gunggumi_ui.dart';
 
 class DesktopHomePage extends StatefulWidget {
   const DesktopHomePage({Key? key}) : super(key: key);
@@ -78,6 +79,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Widget buildLeftPane(BuildContext context) {
     final isIncomingOnly = bind.isIncomingOnly();
     final isOutgoingOnly = bind.isOutgoingOnly();
+    if (isIncomingOnly) {
+      return buildGunggumiLeftPane(context);
+    }
     final children = <Widget>[
       if (!isOutgoingOnly) buildPresetPasswordWarning(),
       if (bind.isCustomClient())
@@ -172,6 +176,61 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                   ),
                 ),
               )
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 궁구미 원격: 받기 전용(고객용) 홈 화면 = B안 첫 화면
+  Widget buildGunggumiLeftPane(BuildContext context) {
+    final model = gFFI.serverModel;
+    void resize() {
+      if (isInHomePage()) {
+        Future.delayed(Duration(milliseconds: 300), () {
+          _updateWindowSize();
+        });
+      }
+    }
+
+    final children = <Widget>[
+      buildPresetPasswordWarning(),
+      GgHomePanel(
+        id: model.serverId,
+        password: model.serverPasswd,
+        onRefreshPassword: () => bind.mainUpdateTemporaryPassword(),
+      ),
+      FutureBuilder<Widget>(
+        future: Future.value(
+            Obx(() => buildHelpCards(stateGlobal.updateUrl.value))),
+        builder: (_, data) {
+          if (data.hasData) {
+            resize();
+            return data.data!;
+          }
+          return const Offstage();
+        },
+      ),
+      DefaultTextStyle.merge(
+        style: const TextStyle(color: GgColors.sub),
+        child: OnlineStatusWidget(onSvcStatusChanged: resize),
+      ).marginOnly(left: 12, bottom: 6, right: 6),
+    ];
+    return ChangeNotifierProvider.value(
+      value: gFFI.serverModel,
+      child: Container(
+        width: ggWidth,
+        color: GgColors.bg,
+        child: Column(
+          children: [
+            SingleChildScrollView(
+              controller: _leftPaneScrollController,
+              child: Column(
+                key: _childKey,
+                children: children,
+              ),
+            ),
+            Expanded(child: Container())
           ],
         ),
       ),

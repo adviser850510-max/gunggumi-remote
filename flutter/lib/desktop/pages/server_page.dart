@@ -18,6 +18,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../common.dart';
 import '../../common/widgets/chat_page.dart';
+import '../widgets/gunggumi_ui.dart';
 import '../../models/file_model.dart';
 import '../../models/platform_model.dart';
 import '../../models/server_model.dart';
@@ -183,6 +184,23 @@ class ConnectionManagerState extends State<ConnectionManager>
       }
     }
 
+    if (serverModel.clients.isEmpty && GgSession.showingEnded) {
+      // 궁구미 원격: 고객이 "원격 끝내기"를 누른 뒤 → 끝난 화면
+      return Column(
+        children: [
+          buildTitleBar(),
+          Expanded(
+            child: GgEndedView(
+              seconds: GgSession.endedSeconds ?? 0,
+              onClose: () {
+                GgSession.endedSeconds = null;
+                windowManager.close();
+              },
+            ),
+          ),
+        ],
+      );
+    }
     return serverModel.clients.isEmpty
         ? Column(
             children: [
@@ -360,9 +378,36 @@ class ConnectionManagerState extends State<ConnectionManager>
   }
 }
 
+/// 궁구미 원격: 화면 보기·제어 연결이고 허용된 뒤면 B안 화면(연결 중 / 끝난 화면)을 쓴다.
+bool _useGunggumiCard(Client client) =>
+    client.authorized &&
+    client.type_() != ClientType.file &&
+    client.type_() != ClientType.portForward &&
+    client.type_() != ClientType.terminal;
+
+Future<void> _gunggumiCloseEnded(Client client) async {
+  await bind.cmRemoveDisconnectedConnection(connId: client.id);
+  GgSession.endedSeconds = null;
+  if (await bind.cmGetClientsLength() == 0) {
+    windowManager.close();
+  }
+}
+
 Widget buildConnectionCard(Client client) {
   return Consumer<ServerModel>(
-    builder: (context, value, child) => Column(
+    builder: (context, value, child) => _useGunggumiCard(client)
+        ? (client.disconnected
+            ? GgEndedView(
+                seconds: GgSession.endedSeconds ?? GgSession.lastSeconds,
+                onClose: () => _gunggumiCloseEnded(client))
+            : GgConnectedView(
+                key: ValueKey('gg-${client.id}'),
+                peerName: client.name,
+                canInput: client.keyboard,
+                canFile: client.file,
+                canClipboard: client.clipboard,
+                onEnd: () => bind.cmCloseConnection(connId: client.id)))
+        : Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       key: ValueKey(client.id),

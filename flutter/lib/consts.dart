@@ -355,8 +355,9 @@ extension StringExtension on String {
   String get nonBreaking => replaceAll(' ', String.fromCharCode($nbsp));
 }
 
-const Size kConnectionManagerWindowSizeClosedChat = Size(300, 490);
-const Size kConnectionManagerWindowSizeOpenChat = Size(700, 490);
+// 궁구미 원격: B안 연결 중 화면(400×620)에 맞춰 키움 (원래 300×490 / 700×490)
+const Size kConnectionManagerWindowSizeClosedChat = Size(400, 660);
+const Size kConnectionManagerWindowSizeOpenChat = Size(800, 660);
 // Tabbar transition duration, now we remove the duration
 const Duration kTabTransitionDuration = Duration.zero;
 const double kEmptyMarginTop = 50;

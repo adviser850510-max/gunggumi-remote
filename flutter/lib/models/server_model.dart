@@ -14,6 +14,7 @@ import '../common.dart';
 import '../common/formatter/id_formatter.dart';
 import '../desktop/pages/server_page.dart' as desktop;
 import '../desktop/widgets/tabbar_widget.dart';
+import '../desktop/widgets/gunggumi_ui.dart';
 import '../mobile/pages/server_page.dart';
 import '../mobile/widgets/android_file_transfer_setup.dart';
 import '../utils/android_documents.dart';
@@ -164,7 +165,10 @@ class ServerModel with ChangeNotifier {
           debugPrint("clients not match!");
           updateClientState(res);
         } else {
-          if (_clients.isEmpty) {
+          if (_clients.isEmpty && GgSession.showingEnded) {
+            // 궁구미 원격: 끝난 화면을 보여 주는 동안은 숨기거나 닫지 않음
+            _zeroClientLengthCounter = 0;
+          } else if (_clients.isEmpty) {
             hideCmWindow();
             if (_zeroClientLengthCounter++ == 12) {
               // 6 second
@@ -521,7 +525,7 @@ class ServerModel with ChangeNotifier {
     }
     if (desktopType == DesktopType.cm) {
       if (_clients.isEmpty) {
-        hideCmWindow();
+        if (!GgSession.showingEnded) hideCmWindow();
       } else if (!hideCm) {
         showCmWindow();
       }
@@ -589,7 +593,8 @@ class ServerModel with ChangeNotifier {
       if (!hideCm) windowOnTop(null);
     });
     // Only do the hidden task when on Desktop.
-    if (client.authorized && isDesktop) {
+    // 궁구미 원격: 고객이 "원격 끝내기"를 볼 수 있게 연결 뒤 자동 최소화하지 않음
+    if (client.authorized && isDesktop && !kGunggumiKeepCmVisible) {
       cmHiddenTimer = Timer(const Duration(seconds: 3), () {
         if (!hideCm) windowManager.minimize();
         cmHiddenTimer = null;
@@ -720,7 +725,9 @@ class ServerModel with ChangeNotifier {
         parent.target?.dialogManager.dismissByTag(getLoginDialogTag(id));
         parent.target?.invokeMethod("cancel_notification", id);
       }
-      if (desktopType == DesktopType.cm && _clients.isEmpty) {
+      if (desktopType == DesktopType.cm &&
+          _clients.isEmpty &&
+          !GgSession.showingEnded) {
         hideCmWindow();
       }
       if (isAndroid) androidUpdatekeepScreenOn();
