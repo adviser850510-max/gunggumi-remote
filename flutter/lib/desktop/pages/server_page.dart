@@ -79,7 +79,8 @@ class _DesktopServerPageState extends State<DesktopServerPage>
   }
 
   void onRemoveId(String id) {
-    if (tabController.state.value.tabs.isEmpty) {
+    // 궁구미 원격: 끝난 화면을 보여 주는 중이면 창을 닫지 않음("닫기"를 누르면 닫힘)
+    if (tabController.state.value.tabs.isEmpty && !GgSession.showingEnded) {
       windowManager.close();
     }
   }
