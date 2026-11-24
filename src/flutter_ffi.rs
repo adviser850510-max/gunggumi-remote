@@ -2461,6 +2461,86 @@ fn gg_set_clipboard_files(paths: &[String]) -> bool {
     }
 }
 
+/// 궁구미 원격: 연결 관리(CM) 창에서 부른다. hide=true면 첫 화면 창(같은 앱 홈 창)을 접고
+/// 이 CM 창을 그 자리로 옮긴다(원격 중 창이 두 개 겹쳐 보이던 문제). hide=false면 첫 화면 창을 다시 펼친다.
+pub fn main_gg_home_window(hide: bool) {
+    #[cfg(windows)]
+    gg_home_window(hide);
+    #[cfg(not(windows))]
+    let _ = hide;
+}
+
+#[cfg(windows)]
+fn gg_home_window(hide: bool) {
+    use winapi::shared::minwindef::{BOOL, LPARAM, TRUE};
+    use winapi::shared::windef::{HWND, RECT};
+    use winapi::um::winuser::{
+        EnumWindows, FindWindowW, GetClassNameW, GetWindowRect, GetWindowThreadProcessId,
+        IsIconic, IsWindowVisible, SetWindowPos, ShowWindow, SWP_NOACTIVATE, SWP_NOSIZE,
+        SWP_NOZORDER, SW_MINIMIZE, SW_RESTORE,
+    };
+    struct Ctx {
+        pid: u32,
+        found: HWND,
+    }
+    unsafe extern "system" fn find_own(h: HWND, l: LPARAM) -> BOOL {
+        let ctx = &mut *(l as *mut Ctx);
+        let mut p: u32 = 0;
+        GetWindowThreadProcessId(h, &mut p);
+        if p == ctx.pid && IsWindowVisible(h) != 0 {
+            let mut buf = [0u16; 64];
+            let n = GetClassNameW(h, buf.as_mut_ptr(), 64);
+            if n > 0 && String::from_utf16_lossy(&buf[..n as usize]) == "FLUTTER_RUNNER_WIN32_WINDOW" {
+                ctx.found = h;
+                return 0;
+            }
+        }
+        TRUE
+    }
+    let class: Vec<u16> = "FLUTTER_RUNNER_WIN32_WINDOW"
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    let title: Vec<u16> = get_app_name().encode_utf16().chain(Some(0)).collect();
+    unsafe {
+        let home = FindWindowW(class.as_ptr(), title.as_ptr());
+        if home.is_null() {
+            return;
+        }
+        let mut home_pid: u32 = 0;
+        GetWindowThreadProcessId(home, &mut home_pid);
+        if home_pid == std::process::id() {
+            return;
+        }
+        if !hide {
+            ShowWindow(home, SW_RESTORE);
+            return;
+        }
+        let mut r: RECT = std::mem::zeroed();
+        let have_rect = IsIconic(home) == 0 && GetWindowRect(home, &mut r) != 0;
+        ShowWindow(home, SW_MINIMIZE);
+        if !have_rect {
+            return;
+        }
+        let mut ctx = Ctx {
+            pid: std::process::id(),
+            found: std::ptr::null_mut(),
+        };
+        EnumWindows(Some(find_own), &mut ctx as *mut Ctx as LPARAM);
+        if !ctx.found.is_null() {
+            SetWindowPos(
+                ctx.found,
+                std::ptr::null_mut(),
+                r.left,
+                r.top,
+                0,
+                0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+            );
+        }
+    }
+}
+
 /// 궁구미 원격: 관리자 권한으로 실행 중인지(관리자 실행이면 설치 안내 카드를 숨김)
 pub fn main_is_elevated() -> SyncReturn<bool> {
     #[cfg(windows)]

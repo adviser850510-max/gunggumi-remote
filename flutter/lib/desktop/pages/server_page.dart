@@ -64,6 +64,8 @@ class _DesktopServerPageState extends State<DesktopServerPage>
 
   @override
   void onWindowClose() {
+    // 궁구미 원격: 연결 창이 닫히면 접어 둔 첫 화면 창을 다시 펼침
+    _ggGiveBackHome();
     // Other platforms keep the old behaviour exactly: the ambiguity this guards against is a
     // Linux session logout, which closes every window in the session.
     final byOperator = _cmClosedByOperator || !isLinux;
@@ -401,7 +403,27 @@ Future<void> _gunggumiCloseEnded(Client client) async {
   }
 }
 
+/// 궁구미 원격: 원격 중에는 궁구미 원격 창을 하나만 — 첫 화면 창을 접고 연결 창을 그 자리에.
+bool _ggHomeHidden = false;
+
+void _ggTakeHomePlace() {
+  if (_ggHomeHidden || !bind.isIncomingOnly()) return;
+  _ggHomeHidden = true;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    bind.mainGgHomeWindow(hide: true);
+  });
+}
+
+void _ggGiveBackHome() {
+  if (!_ggHomeHidden) return;
+  _ggHomeHidden = false;
+  bind.mainGgHomeWindow(hide: false);
+}
+
 Widget buildConnectionCard(Client client) {
+  if (_isGunggumiRemote(client) && !client.disconnected) {
+    _ggTakeHomePlace();
+  }
   return Consumer<ServerModel>(
     builder: (context, value, child) => _useGunggumiCard(client)
         ? (client.disconnected
