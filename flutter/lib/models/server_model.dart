@@ -585,7 +585,8 @@ class ServerModel with ChangeNotifier {
   void _addTab(Client client) {
     tabController.add(TabInfo(
         key: client.id.toString(),
-        label: client.name,
+        // 궁구미 원격: 고객 화면 탭에는 기사님 PC 이름(예: "User") 대신 프로그램 이름
+        label: bind.isIncomingOnly() ? '궁구미 원격' : client.name,
         closable: false,
         onTap: () {},
         page: desktop.buildConnectionCard(client)));

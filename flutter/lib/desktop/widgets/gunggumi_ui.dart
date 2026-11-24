@@ -463,6 +463,43 @@ class GgNoticeCard extends StatelessWidget {
   }
 }
 
+/// 첫 화면 아래 "프로그램 끄기"(원래 받기 전용 "종료" 단추)
+class GgQuitButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  const GgQuitButton({Key? key, required this.label, required this.onPressed})
+      : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+      child: Material(
+        color: Colors.transparent,
+        shape: RoundedRectangleBorder(
+            side: const BorderSide(color: GgColors.line),
+            borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: SizedBox(
+            height: 40,
+            width: double.infinity,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.power_settings_new_rounded,
+                    size: 16, color: GgColors.sub),
+                const SizedBox(width: 6),
+                Text(label, style: _t(13.5, w: FontWeight.w700, c: GgColors.sub)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 2. 연결 허용 화면(기사님이 비밀번호 없이 연결을 요청했을 때)
 /// showAccept=false(비밀번호로만 받는 설정)면 허용 단추 없이 거절만 보여 줌
 class GgApproveView extends StatelessWidget {

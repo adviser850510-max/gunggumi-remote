@@ -638,19 +638,17 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     if (bind.isIncomingOnly()) {
       final quitButtonText =
           bind.mainGetBuildinOption(key: kOptionQuitButtonText).trim();
-      return Align(
-        alignment: Alignment.centerRight,
-        child: OutlinedButton(
-          onPressed: () {
-            SystemNavigator.pop(); // Close the application
-            // https://github.com/flutter/flutter/issues/66631
-            if (isWindows) {
-              exit(0);
-            }
-          },
-          child: Text(quitButtonText.isEmpty ? translate('Quit') : quitButtonText),
-        ),
-      ).marginAll(14);
+      // 궁구미 원격: 원래 "종료" 단추를 B안 모양(둥근 테두리·보조 글자색)으로
+      return GgQuitButton(
+        label: quitButtonText.isEmpty ? '프로그램 끄기' : quitButtonText,
+        onPressed: () {
+          SystemNavigator.pop(); // Close the application
+          // https://github.com/flutter/flutter/issues/66631
+          if (isWindows) {
+            exit(0);
+          }
+        },
+      );
     }
     return Container();
   }
