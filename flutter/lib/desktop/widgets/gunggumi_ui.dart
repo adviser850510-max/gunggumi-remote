@@ -474,18 +474,21 @@ class GgApproveView extends StatelessWidget {
           GgButton(label: '허용', onPressed: onAccept),
           const SizedBox(height: 10),
         ],
-        SizedBox(
-          height: 46,
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: onReject,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: GgColors.text,
+        // CM 창 테마가 OutlinedButton 바탕을 흰색으로 덮어써서(run 45298497880) 직접 그림
+        Material(
+          color: GgColors.card,
+          shape: RoundedRectangleBorder(
               side: const BorderSide(color: GgColors.line),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+              borderRadius: BorderRadius.circular(14)),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onReject,
+            child: SizedBox(
+              height: 46,
+              width: double.infinity,
+              child: Center(
+                  child: Text('거절', style: _t(15, w: FontWeight.w700))),
             ),
-            child: Text('거절', style: _t(15, w: FontWeight.w700)),
           ),
         ),
         const SizedBox(height: 10),
