@@ -45,7 +45,9 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
 
 - run 45303839665: B안 연결 허용 화면(GgApproveView) — 틀린 비밀번호 접속 시 표시, "허용" → 연결 중 화면, "거절" → 연결 끊김(로그 "connection manager")·창 닫힘. 끝난 화면 "원격 시간 1분 미만". (run 45298497880에선 "거절"이 흰 바탕이었음 → CM 테마가 OutlinedButton을 덮어씀 → Material+InkWell로 직접 그려 해결)
 
+- run 45309674792: 어두운 테마 고정(custom_.txt override-settings theme=dark) → 첫 화면 제목 막대·CM 탭 막대 어두움. 설치 안내는 B안 둥근 카드(GgNoticeCard). 창 모서리는 Windows 11이 원래 둥글게 그림(화면 캡처 CopyFromScreen으로 확인 — PrintWindow 캡처는 모서리가 안 보임).
+
 ## 다음 할 일
-1. 첫 화면 아래 "설치하기" 분홍 카드·상태 줄을 B안 색에 맞출지 결정. 설치(MSI)판은 시험 안 함.
+1. 설치(MSI)판은 시험 안 함. 설치 카드의 "설치하기" 단추 동작도 시험 안 함.
 2. 허용 화면에서 "수락 및 권한 상승" 단추를 뺌 — UAC 화면 조작이 필요하면 기사님 쪽 권한 상승 요청으로 되는지 시험 안 함.
 3. 직원 PC 두 대로 실제 원격 시험 — 고객 배포는 아직 안 함. 코드 서명 없음(NotSigned).
