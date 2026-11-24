@@ -1,6 +1,6 @@
 // 궁구미 원격: 고객 화면 B안(구미 안내형)
 // 시안: https://claude.ai/artifact/3bgxoMjNvYMgXspx5z3zkc
-// 화면 3개: 첫 화면(GgHomePanel) / 연결 중(GgConnectedView) / 끝난 화면(GgEndedView)
+// 화면: 첫 화면(GgHomePanel) / 연결 허용(GgApproveView) / 연결 중(GgConnectedView) / 끝난 화면(GgEndedView)
 // 첫 화면은 받기 전용(conn-type=incoming) 홈 화면에, 연결 중·끝난 화면은 연결 관리(CM) 창에 쓴다.
 
 import 'dart:async';
@@ -383,7 +383,119 @@ class _GgHomePanelState extends State<GgHomePanel> {
   }
 }
 
-/// 2. 연결 중 화면
+/// 2. 연결 허용 화면(기사님이 비밀번호 없이 연결을 요청했을 때)
+/// showAccept=false(비밀번호로만 받는 설정)면 허용 단추 없이 거절만 보여 줌
+class GgApproveView extends StatelessWidget {
+  final String peerName;
+  final String peerId;
+  final bool canInput;
+  final bool canFile;
+  final bool canClipboard;
+  final bool showAccept;
+  final VoidCallback onAccept;
+  final VoidCallback onReject;
+  const GgApproveView(
+      {Key? key,
+      required this.peerName,
+      required this.peerId,
+      required this.canInput,
+      required this.canFile,
+      required this.canClipboard,
+      required this.showAccept,
+      required this.onAccept,
+      required this.onReject})
+      : super(key: key);
+
+  Widget _can(IconData icon, String label) => Padding(
+        padding: const EdgeInsets.only(top: 9),
+        child: Row(children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: GgColors.bg,
+              border: Border.all(color: GgColors.line),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 15, color: GgColors.sub),
+          ),
+          const SizedBox(width: 10),
+          Text(label, style: _t(13.5, c: const Color(0xFFC9CFDA))),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final name = peerName.trim().isEmpty ? '기사님' : peerName.trim();
+    return GgFrame(
+      step: 2,
+      bubble: showAccept
+          ? [
+              const TextSpan(text: '기사님이 '),
+              _b('연결을 요청'),
+              const TextSpan(text: '했어요. 궁구미 기사님이 맞으면 '),
+              _b('허용'),
+              const TextSpan(text: '을 눌러 주세요.'),
+            ]
+          : [
+              const TextSpan(text: '기사님이 '),
+              _b('비밀번호'),
+              const TextSpan(text: '를 넣는 중이에요. 잠시만 기다려 주세요.'),
+            ],
+      body: GgCard(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('연결을 요청한 사람', style: _t(12.5, c: GgColors.sub)),
+            const SizedBox(height: 4),
+            Row(children: [
+              Expanded(
+                child: Text(name,
+                    overflow: TextOverflow.ellipsis,
+                    style: _t(18, w: FontWeight.w800)),
+              ),
+              if (peerId.isNotEmpty)
+                Text(ggGroup3(peerId), style: _t(13, c: GgColors.sub)),
+            ]),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: GgColors.line),
+            const SizedBox(height: 10),
+            Text('허용하면 기사님이 할 수 있는 일', style: _t(12.5, c: GgColors.sub)),
+            _can(Icons.visibility_outlined, '화면 보기'),
+            if (canInput) _can(Icons.mouse_outlined, '마우스·키보드 사용'),
+            if (canFile) _can(Icons.folder_outlined, '파일 주고받기'),
+            if (canClipboard) _can(Icons.content_paste, '복사·붙여넣기'),
+          ],
+        ),
+      ),
+      bottom: Column(children: [
+        if (showAccept) ...[
+          GgButton(label: '허용', onPressed: onAccept),
+          const SizedBox(height: 10),
+        ],
+        SizedBox(
+          height: 46,
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: onReject,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: GgColors.text,
+              side: const BorderSide(color: GgColors.line),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+            child: Text('거절', style: _t(15, w: FontWeight.w700)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _footNote([const TextSpan(text: '모르는 사람이면 거절하고 '), _phone()]),
+      ]),
+    );
+  }
+}
+
+/// 3. 연결 중 화면
 class GgConnectedView extends StatefulWidget {
   final String peerName;
   final bool canInput;
@@ -508,7 +620,7 @@ class _GgConnectedViewState extends State<GgConnectedView> {
   }
 }
 
-/// 3. 끝난 화면
+/// 4. 끝난 화면
 class GgEndedView extends StatelessWidget {
   final int seconds;
   final VoidCallback onClose;
@@ -531,7 +643,7 @@ class GgEndedView extends StatelessWidget {
           const SizedBox(height: 8),
           Text('연결이 안전하게 끊겼어요', style: _t(18, w: FontWeight.w800)),
           const SizedBox(height: 8),
-          Text('원격 시간 ${minutes < 1 ? 1 : minutes}분',
+          Text(seconds < 60 ? '원격 시간 1분 미만' : '원격 시간 $minutes분',
               style: _t(13, c: GgColors.sub)),
         ]),
       ),

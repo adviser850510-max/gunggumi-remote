@@ -379,12 +379,19 @@ class ConnectionManagerState extends State<ConnectionManager>
   }
 }
 
-/// 궁구미 원격: 화면 보기·제어 연결이고 허용된 뒤면 B안 화면(연결 중 / 끝난 화면)을 쓴다.
-bool _useGunggumiCard(Client client) =>
-    client.authorized &&
+/// 궁구미 원격: 화면 보기·제어 연결이면 B안 화면을 쓴다.
+bool _isGunggumiRemote(Client client) =>
     client.type_() != ClientType.file &&
     client.type_() != ClientType.portForward &&
     client.type_() != ClientType.terminal;
+
+/// 허용된 뒤: 연결 중 / 끝난 화면
+bool _useGunggumiCard(Client client) =>
+    client.authorized && _isGunggumiRemote(client);
+
+/// 허용 전: B안 연결 허용 화면
+bool _useGunggumiApprove(Client client) =>
+    !client.authorized && !client.disconnected && _isGunggumiRemote(client);
 
 Future<void> _gunggumiCloseEnded(Client client) async {
   await bind.cmRemoveDisconnectedConnection(connId: client.id);
@@ -408,6 +415,20 @@ Widget buildConnectionCard(Client client) {
                 canFile: client.file,
                 canClipboard: client.clipboard,
                 onEnd: () => bind.cmCloseConnection(connId: client.id)))
+        : _useGunggumiApprove(client)
+            ? GgApproveView(
+                key: ValueKey('gg-approve-${client.id}'),
+                peerName: client.name,
+                peerId: client.peerId,
+                canInput: client.keyboard,
+                canFile: client.file,
+                canClipboard: client.clipboard,
+                showAccept: value.approveMode != 'password',
+                // 원래 Accept·Cancel 단추처럼 checkClickTime으로 원격 입력 클릭을 막음
+                onAccept: () => checkClickTime(
+                    client.id, () => value.sendLoginResponse(client, true)),
+                onReject: () => checkClickTime(client.id,
+                    () => bind.cmCloseConnection(connId: client.id)))
         : Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
