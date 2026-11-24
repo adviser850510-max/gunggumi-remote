@@ -482,7 +482,7 @@ jobs:
         shell: bash
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          printf '%s' '{"app-name":"GunggumiRemote","conn-type":"incoming","default-settings":{"temporary-password-length":"6","allow-numeric-one-time-password":"Y"},"override-settings":{"theme":"dark"}}' | base64 -w0 > ./rustdesk/custom_.txt
+          printf '%s' '{"app-name":"GunggumiRemote","conn-type":"incoming","disable-installation":"Y","default-settings":{"temporary-password-length":"6","allow-numeric-one-time-password":"Y"},"override-settings":{"theme":"dark"}}' | base64 -w0 > ./rustdesk/custom_.txt
           base64 -d ./rustdesk/custom_.txt; echo
           mv ./rustdesk/rustdesk.exe ./rustdesk/GunggumiRemote.exe
 
@@ -494,7 +494,7 @@ jobs:
           # 궁구미 원격: 고객이 켤 때마다 관리자 권한(UAC "예")으로 실행 → 안쪽 프로그램도 관리자 권한을
           # 물려받아 시작할 때 포터블 서비스가 켜짐(core_main.rs) → 기사님이 UAC 창도 조작 가능.
           # RDGen "run as admin"과 같은 manifest 줄이지만, 바깥 exe(포터블 묶음)에만 넣는다.
-          # 안쪽 GunggumiRemote.exe·설치판(MSI)은 그대로(asInvoker) — 서비스 실행에 영향 없음.
+          # 안쪽 GunggumiRemote.exe는 그대로(asInvoker). 설치 파일(MSI)은 만들지 않음(포터블만).
           sed -i '/<\/compatibility>/a \
             <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo>' res/manifest.xml
           cat res/manifest.xml
@@ -506,7 +506,9 @@ jobs:
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/GunggumiRemote-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
 
+      # 궁구미 원격: 포터블 exe만 배포 — 설치 파일(MSI) 관련 단계는 모두 끔(if: false)
       - name: Add MSBuild to PATH
+        if: false
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
         with:
           # Select the MSBuild process architecture; -p:Platform sets the MSI target.
@@ -519,7 +521,7 @@ jobs:
         # Builds the MSI for the matrix arch. res/msi (WiX v4 + native CustomActions) carries
         # both x64 and ARM64 platform configs; WcaUtil/DUtil ship arm64 libs. msbuild platform
         # is x64 / ARM64; the produced Package.msi is globbed since its bin/<platform>/ dir varies.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: false  # 궁구미: 포터블만
         run: |
           pushd ./res/msi
           python preprocess.py --app-name GunggumiRemote --arp -d ../../rustdesk
@@ -548,7 +550,7 @@ jobs:
         # Building the arm64 template on the native arm64 runner makes the ARM
         # package available: the build agents are x64 and cannot run
         # preprocess.py against an ARM exe.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: false  # 궁구미: 포터블만
         run: |
           git checkout -- res/msi
           cp -r ./rustdesk ./rustdesk-msi-template
@@ -572,7 +574,7 @@ jobs:
           rm -r -fo ./rustdesk-msi-template
 
       - name: Upload unsigned msi template
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: false  # 궁구미: 포터블만
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rustdesk-unsigned-msi-template-${{ matrix.job.arch }}
@@ -593,7 +595,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload signed Windows Flutter MSI
-        if: env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA == 'true' && env.SIGN_BASE_URL != '-2'
+        if: false  # 궁구미: 포터블만
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-flutter-${{ matrix.job.arch }}-msi
@@ -607,7 +609,6 @@ jobs:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            ./SignOutput/GunggumiRemote-*.msi
             ./SignOutput/GunggumiRemote-*.exe
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
