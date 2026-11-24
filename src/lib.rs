@@ -64,6 +64,9 @@ mod whiteboard;
 mod updater;
 
 mod ui_cm_interface;
+// 궁구미 원격: PC 지킴이 모드(창 없이 실행, 상태 파일, 관리자 전용 명령)
+#[cfg(all(windows, feature = "flutter"))]
+pub mod gg_embedded;
 mod ui_interface;
 mod ui_session_interface;
 

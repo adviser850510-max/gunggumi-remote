@@ -105,6 +105,12 @@ pub fn core_main() -> Option<CoreMainAction> {
         }
         i += 1;
     }
+    // 궁구미 원격: `--gg-cmd <명령>` — 지킴이 모드 프로세스에 명령만 보내고 끝(종료 코드로 결과)
+    #[cfg(all(windows, feature = "flutter"))]
+    if args.first().map(|a| a.as_str()) == Some(crate::gg_embedded::CMD_ARG) {
+        let code = crate::gg_embedded::send_cmd(args.get(1).map(|s| s.as_str()).unwrap_or(""));
+        std::process::exit(code);
+    }
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if args.is_empty() {
         #[cfg(target_os = "linux")]
@@ -407,6 +413,11 @@ pub fn core_main() -> Option<CoreMainAction> {
             }
             #[cfg(windows)]
             crate::privacy_mode::restore_reg_connectivity(true, false);
+            // 궁구미 원격: `--server --gg-embedded` = PC 지킴이 모드(창 없는 CM·상태 파일·명령 통로)
+            #[cfg(all(windows, feature = "flutter"))]
+            if args.iter().any(|a| a == crate::gg_embedded::ARG) {
+                crate::gg_embedded::start();
+            }
             #[cfg(any(target_os = "linux", target_os = "windows"))]
             {
                 crate::start_server(true, false);

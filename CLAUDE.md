@@ -18,6 +18,12 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
 - 빌드는 Windows x64만(flutter-build.yml에서 다른 작업 if: false). 결과 파일 이름 GunggumiRemote-<버전>-x86_64.exe/.msi.
 - 시험 방법: 직원 PC에서 exe 실행 → `%AppData%\GunggumiRemote\log\GunggumiRemote_rCURRENT.log`에 "start rendezvous mediator of gunggumi.iptime.org"와 Latency 줄, 설정 `GunggumiRemote.toml`의 key_confirmed = true 확인. 기사님 쪽은 서버가 박힌 이전 빌드 rustdesk-1.5.3-x86_64.exe를 `--connect <번호> --password <비밀번호>`로 실행.
 
+- PC 지킴이 모드(src/gg_embedded.rs): 고객 화면에는 지킴이 창 하나만. 궁구미 원격은 창 없이 뒤에서 원격만, 보이는 화면은 지킴이 앱이 그림(운영자가 앱 쪽 담당).
+  - 켜기: 관리자 권한으로 **안쪽 exe**(%LocalAppData%\gunggumiremote\GunggumiRemote.exe — 바깥 exe를 한 번 실행하면 풀림)를 `--server --gg-embedded`로 실행. 원본 `--server`(창 없는 서버) + 같은 프로세스 안 창 없는 CM(원본 ui_cm_interface::start_ipc에 GgCm 끼움) + 포터블 서비스(관리자일 때).
+  - 상태: %AppData%\GunggumiRemote\gg_state.json — id, password, state(waiting/requested/connected/ended, state_ko 대기/요청 옴/연결됨/끊김), technician, technician_id, conn_id, connected_at(유닉스 초), permissions(view/input/file/clipboard), connections. 임시 파일 → 이름 바꾸기.
+  - 명령: 안쪽 exe `--gg-cmd accept|reject|close|new-password`, 종료 코드 0 처리됨 / 1 할 것 없음·모르는 명령 / 2 못 붙음(권한 없음 포함). 파이프 _ggcmd는 SDDL D:P(A;;GA;;;SY)(A;;GA;;;BA) → 관리자 권한 프로세스만. 바깥 exe로 부르면 종료 코드가 안 돌아옴(포터블 묶음이 기다리지 않음) → 안쪽 exe로 부를 것.
+  - GitHub에는 궁구미 원격만. 지킴이는 별도 exe로 실행·파일·명령으로만 주고받음(AGPL 결합 아님 — 정식 배포 전 확인).
+
 ## 실패한 것과 원인
 - GitHub 비밀값만 넣으면 서버가 박힌다고 봤음 → 공용 서버(rs-ny.rustdesk.com)에 붙음 → 지금 소스는 그 값을 읽지 않음(playground.yml만 사용). 해결: flutter-build.yml Windows 작업에 "Set Gunggumi server" 단계 추가(libs/hbb_common/src/config.rs를 sed로 교체, 커밋 023719e).
 - master에 push하면 CI·Full Flutter CI가 저절로 돌아 실행 칸을 잡아먹음 → push 직후 그 두 run을 취소한다.
@@ -55,7 +61,8 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
    설치 파일(MSI)·앱 안 설치는 만들지 않기로 함(포터블만, disable-installation=Y).
 1-0. (완료, run 45330883876) exe 2개: 고객용 GunggumiRemote(받기 전용·관리자 실행·비밀번호 4자리·"번호만 불러 주세요") / 기사님용 GunggumiTech(보내기 전용·관리자 실행 없음·B안 기사용 접속 화면·display-name 궁구미 기사님). 확인: 기사님 exe에서 번호만 → 고객 허용 화면에 "궁구미 기사님"·"976 024" → 거절로 끊김 / 4자리 비밀번호 → 바로 연결 / 최근 접속 목록 켜짐 표시·다시 접속. 두 PC(이 PC 기사님 exe → 644188 고객 exe) 확인: 글자 입력·클립보드 붙여넣기 됨(사람이 직접 친 키), 파일 전송(번개 메뉴 → 파일 전송, 비밀번호 다시 입력) 보내기·원격 삭제 됨. 프로그램으로 만든 가짜 키(SendKeys)는 원격에 안 넘어감 — 자동화 때는 번개 메뉴 "클립보드 키 입력 보내기"를 시험해 볼 것. 마우스 클릭은 넘어감.
    파일 복사·붙여넣기(이 PC 탐색기 Ctrl+C → 원격 바탕화면 Ctrl+V) 됨(운영자 확인). 원격 화면 위에 바로 끌어다 놓기는 원본에 없음(DropTarget은 파일 전송 창에만).
-   빌드 안 함(운영자: 다 고친 뒤 한 번에) — 커밋만 됨: ① 원격 화면 끌어다 놓기(놓으면 CF_HDROP로 클립보드 → 놓은 곳 클릭 → Ctrl+V, 커밋 7bdba30) ② 기사님 view_style=adaptive ③ 기사님 화면 바탕색 채우기 ④ 원격 중 궁구미 원격 창 하나만(첫 화면 창 접기·연결 창을 그 자리로, 커밋 613a62a). PC 지킴이 안내 창은 운영자가 앱 쪽에서 고침.
+   이번 묶음(빌드 1번, 시험 안 함): ⑤ PC 지킴이 모드. 시험 순서: 지킴이 모드 실행 → gg_state.json "waiting" → GunggumiTech으로 접속 → "requested"+기사님 이름 → `--gg-cmd accept` → "connected" → `--gg-cmd close` → "ended". 일반 권한에서 `--gg-cmd accept`가 종료 코드 2로 막히는지도 확인.
+   묶음 나머지: ① 원격 화면 끌어다 놓기(놓으면 CF_HDROP로 클립보드 → 놓은 곳 클릭 → Ctrl+V, 커밋 7bdba30) ② 기사님 view_style=adaptive ③ 기사님 화면 바탕색 채우기 ④ 원격 중 궁구미 원격 창 하나만(첫 화면 창 접기·연결 창을 그 자리로, 커밋 613a62a). PC 지킴이 안내 창은 운영자가 앱 쪽에서 고침.
 1-1. (완료, run 45324771858) 연결 창 탭 이름 "궁구미 원격", 첫 화면 "프로그램 끄기"(원래 받기 전용 "종료" 단추를 B안 모양으로).
 2. 허용 화면에서 "수락 및 권한 상승" 단추를 뺌 — UAC 화면 조작이 필요하면 기사님 쪽 권한 상승 요청으로 되는지 시험 안 함.
 3. 직원 PC 두 대로 실제 원격 시험 — 고객 배포는 아직 안 함. 코드 서명 없음(NotSigned).
