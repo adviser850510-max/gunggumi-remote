@@ -662,6 +662,15 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         content != 'install_daemon_tip') {
       return const SizedBox();
     }
+    // 궁구미 원격: 받기 전용(고객용)이면 분홍 그라데이션 대신 B안 둥근 카드
+    if (bind.isIncomingOnly()) {
+      return GgNoticeCard(
+        title: title.isEmpty ? '' : translate(title),
+        content: content.isEmpty ? '' : translate(content),
+        buttonText: btnText.isEmpty ? '' : translate(btnText),
+        onPressed: onPressed,
+      );
+    }
     void closeCard() async {
       if (closeOption != null) {
         await bind.mainSetLocalOption(key: closeOption, value: 'N');

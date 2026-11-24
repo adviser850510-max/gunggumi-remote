@@ -383,6 +383,86 @@ class _GgHomePanelState extends State<GgHomePanel> {
   }
 }
 
+/// 첫 화면 아래 안내 카드(설치 안내 등) — 원래 분홍 그라데이션 카드 대신
+class GgNoticeCard extends StatelessWidget {
+  final String title;
+  final String content;
+  final String buttonText;
+  final VoidCallback onPressed;
+  const GgNoticeCard(
+      {Key? key,
+      required this.title,
+      required this.content,
+      required this.buttonText,
+      required this.onPressed})
+      : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(18, 2, 18, 14),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: GgColors.card,
+        border: Border.all(color: GgColors.line),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: GgColors.accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.info_outline_rounded,
+                  size: 17, color: GgColors.accent),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(title, style: _t(13.5, w: FontWeight.w800)),
+                    ),
+                  if (content.isNotEmpty)
+                    Text(content,
+                        style: _t(12.5, c: GgColors.sub).copyWith(height: 1.5)),
+                ],
+              ),
+            ),
+          ]),
+          if (buttonText.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Material(
+              color: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                  side: const BorderSide(color: GgColors.accent),
+                  borderRadius: BorderRadius.circular(12)),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onPressed,
+                child: SizedBox(
+                  height: 40,
+                  child: Center(
+                      child: Text(buttonText,
+                          style: _t(14,
+                              w: FontWeight.w800, c: GgColors.accent))),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// 2. 연결 허용 화면(기사님이 비밀번호 없이 연결을 요청했을 때)
 /// showAccept=false(비밀번호로만 받는 설정)면 허용 단추 없이 거절만 보여 줌
 class GgApproveView extends StatelessWidget {

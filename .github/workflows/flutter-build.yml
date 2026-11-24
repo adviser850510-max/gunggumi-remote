@@ -482,7 +482,7 @@ jobs:
         shell: bash
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          printf '%s' '{"app-name":"GunggumiRemote","conn-type":"incoming","default-settings":{"temporary-password-length":"6","allow-numeric-one-time-password":"Y"}}' | base64 -w0 > ./rustdesk/custom_.txt
+          printf '%s' '{"app-name":"GunggumiRemote","conn-type":"incoming","default-settings":{"temporary-password-length":"6","allow-numeric-one-time-password":"Y"},"override-settings":{"theme":"dark"}}' | base64 -w0 > ./rustdesk/custom_.txt
           base64 -d ./rustdesk/custom_.txt; echo
           mv ./rustdesk/rustdesk.exe ./rustdesk/GunggumiRemote.exe
 
