@@ -489,6 +489,7 @@ jobs:
 
       # 궁구미 원격: 기사님용 exe — 같은 빌드 결과물에 설정만 다르게 묶음(RDGen 방식).
       # conn-type=outgoing(보내기 전용 → B안 기사용 접속 화면), display-name=궁구미 기사님(원본 builtin 옵션),
+      # view_style=adaptive(원격 화면 기본값 "크기 조정 가능" = 창에 맞추기, 원본 표시 설정 키),
       # 관리자 실행 없음(바깥 manifest에 requireAdministrator를 넣기 전에 먼저 묶는다).
       - name: Build Gunggumi technician executable
         shell: bash
@@ -498,7 +499,7 @@ jobs:
           if grep -q 'requireAdministrator' res/manifest.xml; then echo "manifest must not require admin for technician exe"; exit 1; fi
           rm -rf ./rustdesk-tech
           cp -r ./rustdesk ./rustdesk-tech
-          printf '%s' '{"app-name":"GunggumiTech","conn-type":"outgoing","disable-installation":"Y","default-settings":{"display-name":"궁구미 기사님"},"override-settings":{"theme":"dark"}}' | base64 -w0 > ./rustdesk-tech/custom_.txt
+          printf '%s' '{"app-name":"GunggumiTech","conn-type":"outgoing","disable-installation":"Y","default-settings":{"display-name":"궁구미 기사님","view_style":"adaptive"},"override-settings":{"theme":"dark"}}' | base64 -w0 > ./rustdesk-tech/custom_.txt
           base64 -d ./rustdesk-tech/custom_.txt; echo
           mv ./rustdesk-tech/GunggumiRemote.exe ./rustdesk-tech/GunggumiTech.exe
           pushd ./libs/portable

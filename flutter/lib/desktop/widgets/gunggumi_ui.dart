@@ -599,11 +599,13 @@ class _GgTechPanelState extends State<GgTechPanel> {
   @override
   Widget build(BuildContext context) {
     final peers = _peers;
+    // 창 전체를 B안 바탕색으로(내용 아래 빈 곳이 회색으로 보이던 문제)
     return Material(
       color: GgColors.bg,
       child: DefaultTextStyle(
         style: _t(14),
-        child: SingleChildScrollView(
+        child: SizedBox.expand(
+          child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -701,6 +703,7 @@ class _GgTechPanelState extends State<GgTechPanel> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

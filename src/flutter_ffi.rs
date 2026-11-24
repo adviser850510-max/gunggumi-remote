@@ -2390,6 +2390,77 @@ pub fn main_is_installed() -> SyncReturn<bool> {
     SyncReturn(is_installed())
 }
 
+/// 궁구미 원격: 파일 목록을 이 PC 클립보드에 넣는다(탐색기 Ctrl+C와 같은 CF_HDROP).
+/// 원격 화면에 파일을 끌어다 놓으면 이것으로 클립보드에 넣고, 원본 "파일 복사·붙여넣기"
+/// (libs/clipboard wf_cliprdr.c, CF_HDROP만 있으면 원격으로 목록을 보냄)로 원격에 Ctrl+V 한다.
+pub fn main_set_clipboard_files(paths: Vec<String>) -> bool {
+    #[cfg(windows)]
+    return gg_set_clipboard_files(&paths);
+    #[cfg(not(windows))]
+    {
+        let _ = paths;
+        return false;
+    }
+}
+
+#[cfg(windows)]
+fn gg_set_clipboard_files(paths: &[String]) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use winapi::um::winbase::{GlobalAlloc, GlobalFree, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use winapi::um::winuser::{
+        CloseClipboard, EmptyClipboard, GetForegroundWindow, OpenClipboard, SetClipboardData,
+        CF_HDROP,
+    };
+    if paths.is_empty() {
+        return false;
+    }
+    // DROPFILES(20바이트: pFiles, pt.x, pt.y, fNC, fWide) + 넓은 문자 경로들(각각 0으로 끝, 마지막에 0 하나 더)
+    let mut wide: Vec<u16> = Vec::new();
+    for p in paths {
+        wide.extend(std::ffi::OsStr::new(p).encode_wide());
+        wide.push(0);
+    }
+    wide.push(0);
+    let header: usize = 20;
+    let size = header + wide.len() * 2;
+    unsafe {
+        let h = GlobalAlloc(GMEM_MOVEABLE, size);
+        if h.is_null() {
+            return false;
+        }
+        let p = GlobalLock(h) as *mut u8;
+        if p.is_null() {
+            GlobalFree(h);
+            return false;
+        }
+        std::ptr::write_bytes(p, 0, header);
+        *(p as *mut u32) = header as u32; // pFiles
+        *(p.add(16) as *mut i32) = 1; // fWide
+        std::ptr::copy_nonoverlapping(wide.as_ptr() as *const u8, p.add(header), wide.len() * 2);
+        GlobalUnlock(h);
+        let mut opened = false;
+        for _ in 0..10 {
+            if OpenClipboard(GetForegroundWindow()) != 0 {
+                opened = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(30));
+        }
+        if !opened {
+            GlobalFree(h);
+            return false;
+        }
+        EmptyClipboard();
+        let r = SetClipboardData(CF_HDROP, h as _);
+        CloseClipboard();
+        if r.is_null() {
+            GlobalFree(h);
+            return false;
+        }
+        true
+    }
+}
+
 /// 궁구미 원격: 관리자 권한으로 실행 중인지(관리자 실행이면 설치 안내 카드를 숨김)
 pub fn main_is_elevated() -> SyncReturn<bool> {
     #[cfg(windows)]

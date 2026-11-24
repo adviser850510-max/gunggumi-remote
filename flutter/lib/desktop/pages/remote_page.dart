@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:ui' as ui;
+
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/gestures.dart';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
@@ -1012,9 +1016,39 @@ class _RemotePageState extends State<RemotePage>
             QualityMonitor(_ffi.qualityMonitorModel), null, null),
       ),
     );
-    return Stack(
-      children: paints,
+    // 궁구미 원격: 원격 화면에 파일을 끌어다 놓으면 그 자리에 붙여넣기
+    return DropTarget(
+      onDragDone: (details) => _gunggumiDropFiles(details),
+      child: Stack(
+        children: paints,
+      ),
     );
+  }
+
+  /// 궁구미 원격: 끌어다 놓은 파일을 이 PC 클립보드에 넣고(탐색기 Ctrl+C와 같음),
+  /// 놓은 위치를 원격에서 클릭한 뒤 Ctrl+V — 원본 "파일 복사·붙여넣기"를 그대로 쓴다.
+  Future<void> _gunggumiDropFiles(DropDoneDetails details) async {
+    final paths = details.files
+        .map((f) => f.path)
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (paths.isEmpty) return;
+    final ok = await bind.mainSetClipboardFiles(paths: paths);
+    if (!ok) {
+      debugPrint('gunggumi drop: failed to set clipboard files');
+      return;
+    }
+    final input = _ffi.inputModel;
+    input.onPointHoverImage(PointerHoverEvent(
+        position: details.globalPosition, kind: ui.PointerDeviceKind.mouse));
+    await Future.delayed(const Duration(milliseconds: 150));
+    await input.tap(MouseButtons.left);
+    // 파일 목록이 원격 클립보드로 넘어갈 시간을 준 뒤 붙여넣기
+    await Future.delayed(const Duration(milliseconds: 900));
+    final old = input.ctrl;
+    input.ctrl = true;
+    input.inputKey('VK_V');
+    input.ctrl = old;
   }
 
   @override
