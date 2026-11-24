@@ -8,7 +8,7 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
 - 서버 공개키는 NAS `docker/rustdesk-server/id_ed25519.pub`. 빌드에는 GitHub 비밀값 `RENDEZVOUS_SERVER`, `RS_PUB_KEY`로 들어간다.
 - 빌드: GitHub Actions "Flutter Nightly Build"(workflow_dispatch) → Releases의 `nightly` 태그에 올라감. 쓰는 건 Windows x86_64 exe/msi.
 - 이름·회사명·아이콘은 RDGen(https://github.com/bryangerlach/rdgen, generator-windows.yml)이 바꾸는 파일 목록을 그대로 따른다: 이름 GunggumiRemote, 회사 Gunggumi Computer, 아이콘은 PC 지킴이 방패(초록 #3fb27f, 어두운 바탕 #1c1f26).
-- 고객 화면 디자인: **B안(구미 안내형)** 확정 — 단계 막대(번호 알려 주기 → 연결 허용 → 기사님이 해결) + 구미 말풍선. 화면 3개: 첫 화면 / 연결 중(경과 시간·할 수 있는 일·빨간 "원격 끝내기") / 끝난 화면. 시안: https://claude.ai/artifact/3bgxoMjNvYMgXspx5z3zkc (색: 바탕 #111318, 카드 #1c1f26, 선 #2b303b, 글자 #e9ecf2, 보조 #9aa3b2, 강조 #3fb27f)
+- 고객 화면 디자인: **B안(구미 안내형)** 확정 — 단계 막대(번호 알려 주기 → 연결 허용 → 기사님이 해결) + 구미 말풍선. 화면 4개: 첫 화면 / 연결 허용(초록 "허용"·"거절", 시안에 없어 연결 중 화면 틀로 만듦) / 연결 중(경과 시간·할 수 있는 일·빨간 "원격 끝내기") / 끝난 화면. 시안: https://claude.ai/artifact/3bgxoMjNvYMgXspx5z3zkc (색: 바탕 #111318, 카드 #1c1f26, 선 #2b303b, 글자 #e9ecf2, 보조 #9aa3b2, 강조 #3fb27f)
 - 접속번호: **6자리 숫자**(예: 482 913), 1회용 비밀번호도 **숫자 6자리**. 근거: rustdesk-server는 6자 미만 ID를 거절(rendezvous_server.rs `id.len() < 6`), 번호는 PC uuid에 묶임. 숫자 비밀번호는 원래 옵션 `allow-numeric-one-time-password` + `temporary-password-length`.
 - 기사님 쪽은 원래 RustDesk 화면 그대로.
 - 앱 이름·기본 설정은 RDGen 방식 `custom_.txt`(exe 옆, base64 JSON)로 넣는다: app-name=GunggumiRemote, conn-type=incoming(받기 전용=고객용), default-settings(temporary-password-length=6, allow-numeric-one-time-password=Y). 서명 검사는 `.github/gunggumi/patch_gunggumi.py`가 빌드 때 지움(RDGen allowCustom.py와 같음).
@@ -35,6 +35,7 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
 - 언어 파일(src/lang/*.rs)은 건드리지 않는다. 이름은 APP_NAME(custom_.txt app-name)으로만 바꾼다.
 - Flutter 코드는 이 PC에서 컴파일 검사가 안 됨(Flutter SDK 없음) → 화면 변경은 따로 커밋·빌드해서 다른 작업 확인을 막지 않게 한다.
 - 비밀번호·키 값은 이 노트·커밋에 적지 않는다(비밀값 이름만).
+- CM 창(B안) 단추는 Material 기본 단추(OutlinedButton 등) 대신 색을 직접 지정해 그린다 — CM 테마가 바탕색을 덮어쓴다.
 - AGPL: 저장소는 공개 유지.
 
 ## 확인된 것 (exe 받아 실행)
@@ -42,8 +43,9 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
 - run 45221407440: B안 첫 화면, 연결 중 화면(경과 시간·할 수 있는 일·빨간 단추) 표시. 기사님 쪽 접속(rustdesk --connect) 성공.
 - run 45291778873: 끝난 화면 됨 — ① 기사님이 끊으면 CM 창에 끝난 화면이 남고 "닫기"로 창이 닫힘(홈 창은 남음) ② 고객 "원격 끝내기" → 연결 끊김(로그 "Connection closed: connection manager") → 끝난 화면 → "닫기"로 닫힘. 연결이 끝나면 1회용 비밀번호가 새로 바뀜. 허용 전에 끊긴 연결은 끝난 화면 없이 닫힘(의도대로).
 
+- run 45303839665: B안 연결 허용 화면(GgApproveView) — 틀린 비밀번호 접속 시 표시, "허용" → 연결 중 화면, "거절" → 연결 끊김(로그 "connection manager")·창 닫힘. 끝난 화면 "원격 시간 1분 미만". (run 45298497880에선 "거절"이 흰 바탕이었음 → CM 테마가 OutlinedButton을 덮어씀 → Material+InkWell로 직접 그려 해결)
+
 ## 다음 할 일
-1. 허용 전(허용/거절) 창은 아직 원래 RustDesk 화면(흰 바탕·파란 권한 단추) — B안 "2 연결 허용" 모양으로 바꿀지 결정.
-2. 첫 화면 아래 "설치하기" 분홍 카드·상태 줄을 B안 색에 맞출지 결정. 설치(MSI)판은 시험 안 함.
-3. 끝난 화면 "원격 시간"이 1분 미만도 "1분"으로 나옴 — "1분 미만"으로 바꿀지(작음).
-4. 직원 PC 두 대로 실제 원격 시험 — 고객 배포는 아직 안 함. 코드 서명 없음(NotSigned).
+1. 첫 화면 아래 "설치하기" 분홍 카드·상태 줄을 B안 색에 맞출지 결정. 설치(MSI)판은 시험 안 함.
+2. 허용 화면에서 "수락 및 권한 상승" 단추를 뺌 — UAC 화면 조작이 필요하면 기사님 쪽 권한 상승 요청으로 되는지 시험 안 함.
+3. 직원 PC 두 대로 실제 원격 시험 — 고객 배포는 아직 안 함. 코드 서명 없음(NotSigned).
