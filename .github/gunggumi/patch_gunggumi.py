@@ -7,6 +7,7 @@
 #    - get_auto_id(): 데스크톱은 MAC 주소로 만들던 번호를 무작위 6자리(100000~999999)로
 #    - update_id(): 서버가 UUID_MISMATCH로 거절하면 부르는 함수. 새 번호도 6자리로
 #    서버(rustdesk-server)는 6자 미만 ID를 거절하므로 6자리가 최소.
+# 3) 1회용 비밀번호 4자리 허용 — password_security.rs temporary_password_length()
 #
 # 찾는 문장이 없으면(원본이 바뀐 경우) 조용히 넘어가지 않고 실패한다.
 import sys
@@ -80,6 +81,27 @@ def patch_six_digit_id():
     print("config.rs: 6-digit id patched")
 
 
+PWSEC = "libs/hbb_common/src/password_security.rs"
+
+
+def patch_four_digit_password():
+    # 3) 1회용 비밀번호 4자리 — 원본은 temporary-password-length 로 6/8/10만 받음.
+    #    "4"도 받게 한 줄 추가(custom_.txt default-settings 에서 4로 지정).
+    s = read(PWSEC)
+    old = '    let length = Config::get_option("temporary-password-length");\n    if length == "8" {'
+    if s.count(old) != 1:
+        fail("temporary_password_length() not found exactly once")
+    new = ('    let length = Config::get_option("temporary-password-length");\n'
+           '    // Gunggumi: allow 4-digit one-time password\n'
+           '    if length == "4" {\n'
+           '        4\n'
+           '    } else if length == "8" {')
+    s = s.replace(old, new)
+    write(PWSEC, s)
+    print("password_security.rs: 4-digit one-time password allowed")
+
+
 if __name__ == "__main__":
     patch_allow_custom()
     patch_six_digit_id()
+    patch_four_digit_password()

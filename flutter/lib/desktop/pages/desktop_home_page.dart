@@ -60,6 +60,16 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Widget build(BuildContext context) {
     super.build(context);
     final isIncomingOnly = bind.isIncomingOnly();
+    // 궁구미 원격: 기사님 exe(보내기 전용)는 B안 기사용 접속 화면 하나만
+    if (bind.isOutgoingOnly()) {
+      return _buildBlock(
+        child: GgTechPanel(
+          recent: gFFI.recentPeersModel,
+          onConnect: (id, pw) =>
+              connect(context, id, password: pw.isEmpty ? null : pw),
+        ),
+      );
+    }
     return _buildBlock(
         child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -938,6 +948,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     if (bind.isIncomingOnly()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _updateWindowSize();
+      });
+    }
+    // 궁구미 원격: 기사님 exe는 B안 화면 폭(약 420)에 맞춘 작은 창으로 시작
+    if (bind.isOutgoingOnly()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        windowManager.setSize(const Size(440, 760));
       });
     }
     WidgetsBinding.instance.addObserver(this);

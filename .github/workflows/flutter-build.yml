@@ -206,6 +206,7 @@ jobs:
           python3 ./.github/gunggumi/patch_gunggumi.py
           grep -n "custom_.txt" ./src/common.rs
           grep -n "100_000..1_000_000u32" ./libs/hbb_common/src/config.rs
+          grep -n 'length == "4"' ./libs/hbb_common/src/password_security.rs
 
       - name: Restore bridge files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -477,14 +478,38 @@ jobs:
 
       # 궁구미 원격: 앱 이름·기본 설정(RDGen custom_.txt 방식). APP_NAME이 바뀌면 설정 폴더가
       # %AppData%\GunggumiRemote 가 되고, 화면 문장 속 "RustDesk"는 translate()가 앱 이름으로 바꾼다.
-      # 1회용 비밀번호: 숫자 6자리 기본값. conn-type=incoming: 받기 전용(고객용) → B안 첫 화면.
+      # 1회용 비밀번호: 숫자 4자리(patch_gunggumi.py가 4 허용). conn-type=incoming: 받기 전용(고객용) → B안 첫 화면.
       - name: Create Gunggumi custom_.txt
         shell: bash
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          printf '%s' '{"app-name":"GunggumiRemote","conn-type":"incoming","disable-installation":"Y","default-settings":{"temporary-password-length":"6","allow-numeric-one-time-password":"Y"},"override-settings":{"theme":"dark"}}' | base64 -w0 > ./rustdesk/custom_.txt
+          printf '%s' '{"app-name":"GunggumiRemote","conn-type":"incoming","disable-installation":"Y","default-settings":{"temporary-password-length":"4","allow-numeric-one-time-password":"Y"},"override-settings":{"theme":"dark"}}' | base64 -w0 > ./rustdesk/custom_.txt
           base64 -d ./rustdesk/custom_.txt; echo
           mv ./rustdesk/rustdesk.exe ./rustdesk/GunggumiRemote.exe
+
+      # 궁구미 원격: 기사님용 exe — 같은 빌드 결과물에 설정만 다르게 묶음(RDGen 방식).
+      # conn-type=outgoing(보내기 전용 → B안 기사용 접속 화면), display-name=궁구미 기사님(원본 builtin 옵션),
+      # 관리자 실행 없음(바깥 manifest에 requireAdministrator를 넣기 전에 먼저 묶는다).
+      - name: Build Gunggumi technician executable
+        shell: bash
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          sed -i '/dpiAware/d' res/manifest.xml
+          if grep -q 'requireAdministrator' res/manifest.xml; then echo "manifest must not require admin for technician exe"; exit 1; fi
+          rm -rf ./rustdesk-tech
+          cp -r ./rustdesk ./rustdesk-tech
+          printf '%s' '{"app-name":"GunggumiTech","conn-type":"outgoing","disable-installation":"Y","default-settings":{"display-name":"궁구미 기사님"},"override-settings":{"theme":"dark"}}' | base64 -w0 > ./rustdesk-tech/custom_.txt
+          base64 -d ./rustdesk-tech/custom_.txt; echo
+          mv ./rustdesk-tech/GunggumiRemote.exe ./rustdesk-tech/GunggumiTech.exe
+          pushd ./libs/portable
+          pip3 install -r requirements.txt
+          python3 ./generate.py -f ../../rustdesk-tech/ -o . -e ../../rustdesk-tech/GunggumiTech.exe
+          popd
+          mkdir -p ./SignOutput
+          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/GunggumiTech-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          rm -rf ./rustdesk-tech
+          if grep -a -q 'requireAdministrator' ./SignOutput/GunggumiTech-*.exe; then echo "technician exe must not require admin"; exit 1; fi
+          ls -la ./SignOutput
 
       - name: Build self-extracted executable
         shell: bash
@@ -499,12 +524,17 @@ jobs:
             <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo>' res/manifest.xml
           cat res/manifest.xml
           grep -q 'requireAdministrator' res/manifest.xml
+          # 앞에서 기사님 exe를 이미 한 번 빌드했으므로, 바뀐 manifest를 다시 읽도록 build.rs를 건드린다
+          touch ./libs/portable/build.rs
           pushd ./libs/portable
           pip3 install -r requirements.txt
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/GunggumiRemote.exe
           popd
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/GunggumiRemote-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          # 고객용 exe에는 관리자 실행이 꼭 들어가야 함(앞에서 기사님 exe를 먼저 묶었으므로 다시 확인)
+          grep -a -q 'requireAdministrator' ./SignOutput/GunggumiRemote-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          ls -la ./SignOutput
 
       # 궁구미 원격: 포터블 exe만 배포 — 설치 파일(MSI) 관련 단계는 모두 끔(if: false)
       - name: Add MSBuild to PATH
@@ -610,6 +640,7 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: |
             ./SignOutput/GunggumiRemote-*.exe
+            ./SignOutput/GunggumiTech-*.exe
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:

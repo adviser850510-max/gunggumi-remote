@@ -8,6 +8,8 @@ import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_hbb/models/peer_model.dart';
+import 'package:flutter_hbb/models/platform_model.dart';
 
 class GgColors {
   static const bg = Color(0xFF111318);
@@ -59,11 +61,15 @@ TextStyle _t(double size,
         height: 1.35,
         decoration: TextDecoration.none);
 
-/// "482913" → "482 913"
+/// "482913" → "482 913", "114834422" → "114 834 422" (숫자이고 길이가 3의 배수일 때만)
 String ggGroup3(String s) {
   final t = s.replaceAll(' ', '');
-  if (t.length == 6 && int.tryParse(t) != null) {
-    return '${t.substring(0, 3)} ${t.substring(3)}';
+  if (t.length >= 6 && t.length % 3 == 0 && RegExp(r'^\d+$').hasMatch(t)) {
+    final parts = <String>[];
+    for (var i = 0; i < t.length; i += 3) {
+      parts.add(t.substring(i, i + 3));
+    }
+    return parts.join(' ');
   }
   return t;
 }
@@ -331,42 +337,51 @@ class _GgHomePanelState extends State<GgHomePanel> {
                 ]
               : [
                   const TextSpan(text: '기사님께 아래 '),
-                  _b('번호'),
-                  const TextSpan(text: '를 불러 주세요. 제가 옆에서 같이 볼게요!'),
+                  _b('번호만'),
+                  const TextSpan(text: ' 불러 주세요. 연결되면 제가 알려 드릴게요!'),
                 ],
           body: GgCard(
-            padding: const EdgeInsets.fromLTRB(16, 22, 16, 18),
+            padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
             child: Column(children: [
               Text('접속번호', style: _t(12.5, c: GgColors.sub)),
               const SizedBox(height: 4),
               SelectableText(id.isEmpty ? '…' : id,
-                  style: _t(48, w: FontWeight.w800, c: GgColors.accent)
+                  style: _t(52, w: FontWeight.w800, c: GgColors.accent)
                       .copyWith(
                           letterSpacing: 4,
-                          height: 1.1,
+                          height: 1.05,
                           fontFeatures: const [
                         FontFeature.tabularFigures()
                       ])),
-              const SizedBox(height: 6),
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('비밀번호 ', style: _t(13, c: GgColors.sub)),
-                SelectableText(pwShown,
-                    style: _t(13, w: FontWeight.w800)
-                        .copyWith(letterSpacing: 2)),
-                const SizedBox(width: 4),
-                Tooltip(
-                  message: '비밀번호 새로 받기',
-                  child: IconButton(
-                    onPressed: widget.onRefreshPassword,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    color: GgColors.sub,
-                    splashRadius: 16,
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                    padding: EdgeInsets.zero,
-                  ),
+              const SizedBox(height: 10),
+              // 비밀번호는 기사님이 물을 때만 — 작은 상자로
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 2, 4, 2),
+                decoration: BoxDecoration(
+                  color: GgColors.bg,
+                  border: Border.all(color: GgColors.line),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ]),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('기사님이 물으면 비밀번호 ',
+                      style: _t(12.5, c: GgColors.sub)),
+                  SelectableText(pwShown,
+                      style: _t(13, w: FontWeight.w800)
+                          .copyWith(letterSpacing: 3)),
+                  Tooltip(
+                    message: '비밀번호 새로 받기',
+                    child: IconButton(
+                      onPressed: widget.onRefreshPassword,
+                      icon: const Icon(Icons.refresh, size: 15),
+                      color: GgColors.sub,
+                      splashRadius: 14,
+                      constraints:
+                          const BoxConstraints(minWidth: 30, minHeight: 30),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                ]),
+              ),
             ]),
           ),
           bottom: Column(children: [
@@ -458,6 +473,235 @@ class GgNoticeCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// 기사님용 접속 화면(기사님 exe = conn-type outgoing). 시안 B안 4.
+/// 고객 번호(+선택 비밀번호)로 접속. 비밀번호를 비우면 고객 PC에 허용 창이 뜬다.
+class GgTechPanel extends StatefulWidget {
+  final Peers recent;
+  final void Function(String id, String password) onConnect;
+  const GgTechPanel({Key? key, required this.recent, required this.onConnect})
+      : super(key: key);
+  @override
+  State<GgTechPanel> createState() => _GgTechPanelState();
+}
+
+class _GgTechPanelState extends State<GgTechPanel> {
+  final _id = TextEditingController();
+  final _pw = TextEditingController();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.recent.addListener(_changed);
+    bind.mainLoadRecentPeers();
+    Future.delayed(const Duration(seconds: 2), _queryOnlines);
+    _timer =
+        Timer.periodic(const Duration(seconds: 20), (_) => _queryOnlines());
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  List<Peer> get _peers => widget.recent.peers.take(5).toList();
+
+  void _queryOnlines() {
+    if (!mounted) return;
+    final ids = _peers.map((p) => p.id).toList();
+    if (ids.isNotEmpty) bind.queryOnlines(ids: ids);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    widget.recent.removeListener(_changed);
+    _id.dispose();
+    _pw.dispose();
+    super.dispose();
+  }
+
+  void _go(String id, String pw) {
+    final clean = id.replaceAll(RegExp(r'\s'), '');
+    if (clean.isEmpty) return;
+    widget.onConnect(clean, pw.trim());
+  }
+
+  InputDecoration _deco(String hint) => InputDecoration(
+        hintText: hint,
+        hintStyle: _t(15, c: const Color(0xFF5D6575)),
+        filled: true,
+        fillColor: GgColors.bg,
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: GgColors.line)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: GgColors.accent)),
+      );
+
+  Widget _peerRow(Peer p) {
+    final on = p.online;
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: GgColors.card,
+        border: Border.all(color: GgColors.line),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+            color: on ? GgColors.accent : const Color(0xFF4A5162),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(ggGroup3(p.id),
+            style: _t(15, w: FontWeight.w800).copyWith(letterSpacing: 1)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(on ? '켜짐' : '꺼짐',
+              overflow: TextOverflow.ellipsis,
+              style: _t(12.5, c: GgColors.sub)),
+        ),
+        Material(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+              side: BorderSide(color: on ? GgColors.accent : GgColors.line),
+              borderRadius: BorderRadius.circular(10)),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => _go(p.id, ''),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              child: Text('다시 접속',
+                  style: _t(12.5,
+                      w: FontWeight.w800,
+                      c: on ? GgColors.accent : GgColors.sub)),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final peers = _peers;
+    return Material(
+      color: GgColors.bg,
+      child: DefaultTextStyle(
+        style: _t(14),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: [
+                const Expanded(child: GgHeader()),
+                Container(
+                  margin: const EdgeInsets.only(right: 18, top: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: GgColors.accent.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('기사용',
+                      style: _t(12, w: FontWeight.w800, c: GgColors.accent)),
+                ),
+              ]),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GgCard(
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text('고객 접속번호',
+                              style: _t(12.5, c: GgColors.sub)),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _id,
+                            autofocus: true,
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            cursorColor: GgColors.accent,
+                            style: _t(32, w: FontWeight.w800, c: GgColors.accent)
+                                .copyWith(letterSpacing: 4, height: 1.1),
+                            decoration: _deco('000 000'),
+                            onSubmitted: (_) => _go(_id.text, _pw.text),
+                          ),
+                          const SizedBox(height: 12),
+                          Text.rich(TextSpan(
+                              style: _t(12.5, c: GgColors.sub),
+                              children: const [
+                                TextSpan(text: '비밀번호 '),
+                                TextSpan(
+                                    text: '(비워 두면 고객이 "허용"을 눌러요)',
+                                    style: TextStyle(color: Color(0xFF7D8697))),
+                              ])),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _pw,
+                            keyboardType: TextInputType.number,
+                            cursorColor: GgColors.accent,
+                            style: _t(16, w: FontWeight.w700)
+                                .copyWith(letterSpacing: 2),
+                            decoration: _deco('선택'),
+                            onSubmitted: (_) => _go(_id.text, _pw.text),
+                          ),
+                          const SizedBox(height: 14),
+                          GgButton(
+                              label: '접속하기',
+                              onPressed: () => _go(_id.text, _pw.text)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('최근 접속한 고객 PC',
+                        style: _t(12.5, w: FontWeight.w700, c: GgColors.sub)),
+                    if (peers.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text('아직 없어요',
+                            style: _t(12.5, c: const Color(0xFF7D8697))),
+                      ),
+                    ...peers.map(_peerRow),
+                    const SizedBox(height: 18),
+                    Text.rich(
+                      TextSpan(
+                          style: _t(12.5, c: GgColors.sub),
+                          children: const [
+                            TextSpan(text: '고객 화면에는 '),
+                            TextSpan(
+                                text: '궁구미 기사님',
+                                style: TextStyle(
+                                    color: GgColors.text,
+                                    fontWeight: FontWeight.w800)),
+                            TextSpan(text: '으로 보여요'),
+                          ]),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
