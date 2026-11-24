@@ -26,7 +26,7 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
 - 하단 "자신만의 서버를 설정해 주세요"로 서버 연결을 판정함 → 서버를 박아도 계속 뜸 → 원인: using_public_server()가 custom-rendezvous-server 옵션만 봄. 해결: RDGen처럼 안내를 끄고(connection_page.dart), 서버 확인은 로그·key_confirmed로 한다.
 - B안 끝난 화면을 고객 "원격 끝내기" 때만 띄움 → 기사님 쪽이 끊으면 CM 창이 6초 뒤 그냥 꺼짐 → 원인: 기사님이 끊으면 연결이 '끊김 표시'가 아니라 목록에서 삭제(close=true)됨. 1차 수정: server_model.dart onClientRemove에서 허용된 연결이 지워질 때 GgSession.ended() → run 45229788572에서 다시 실패(창이 바로 꺼짐). 진짜 원인: server_page.dart `onRemoveId()`가 탭이 0개가 되면 즉시 windowManager.close(). 2회 실패 후 운영자가 (가) 선택 → onRemoveId()에서 GgSession.showingEnded면 닫지 않게 함(커밋 1236461) → run 45291778873에서 해결 확인.
 - 같은 PC에서 기사님 쪽으로 자기 자신에 접속해 시험하면 내 마우스가 원격 입력으로 되돌아가 CM 창이 "원격 조작 차단"(buildRemoteBlock)에 걸림 → 해결: 기사님 창을 최소화(ShowWindow 6)한 뒤 CM 단추를 누르면 됨(run 45291778873). 누르기 전 WindowFromPoint로 그 자리 창 주인이 CM인지 확인한다. 또 2026-11-24 시험 때 접속 직후 "Windows 보안"(PickerHost) 투명 창이 CM 창 위를 덮고 있었음(원인 미확인).
-- 켤 때마다 관리자 실행(바깥 exe manifest requireAdministrator, run 45316315690) → 관리자 실행·설치 카드 숨김은 됨. 하지만 포터블 서비스(UAC 창 조작용)가 안 켜짐: portable-service 로그 "Failed to run as system (os error 3)" → impersonate_system(winlogon 토큰 → CreateProcessWithTokenW)이 이 PC(직원 PC)에서 실패. D:\시험 폴더·다운로드 폴더 두 번 모두 같음. seclogon 서비스는 실행 중. 정확한 실패 단계는 미확인(라이브러리가 stdout에만 출력). 2회 실패 → 멈춤, 다음 방법은 '다음 할 일' 1번.
+- 켤 때마다 관리자 실행(바깥 exe manifest requireAdministrator, run 45316315690) → 관리자 실행·설치 카드 숨김은 됨. 하지만 포터블 서비스(UAC 창 조작용)가 안 켜짐: portable-service 로그 "Failed to run as system (os error 3)" → impersonate_system(winlogon 토큰 → CreateProcessWithTokenW)이 이 PC(직원 PC)에서 실패. D:\시험 폴더·다운로드 폴더 두 번 모두 같음. seclogon 서비스는 실행 중. 원인 확인(관리자 cmd로 안쪽 exe --elevate 실행): 관리자 권한·SeDebugPrivilege는 있음, 마지막 단계(SYSTEM 권한으로 새 프로세스 만들기)에서 "경로를 찾을 수 없음"으로 실패. Defender 탐지 기록은 없음. 이 PC 환경 문제인지는 미확인. 2회 실패 → 멈춤, 다음 방법은 '다음 할 일' 1번.
 - 이전 공용 빌드를 돌린 PC는 %AppData%\RustDesk에 rs-ny 설정이 남아 시작 직후 NAT 검사가 rs-ny로 감 → 앱 이름을 바꿔 설정 폴더가 새로 생기면서 사라짐.
 
 ## 지켜야 할 규칙
@@ -50,7 +50,7 @@ RustDesk(AGPL-3.0) 포크로 만드는 궁구미컴퓨터 고객 원격 프로�
 
 ## 다음 할 일
 0. (보류, 2026-11-24 운영자 결정) 기사님 쪽 현황판 — 설치된 고객 PC·켜진 PC·연결 중 PC 목록. 지금 OSS 서버엔 없음. 후보: 오픈소스 관리 서버(lejianwen/rustdesk-api, NAS에서 되는지 조사 필요) / RustDesk Pro(유료) / hbbs sqlite 읽는 자체 페이지.
-1. 포터블 서비스(UAC 창 조작) 실패 — 운영자 결정 대기. 후보: (가) 관리자 cmd로 안쪽 exe `--elevate` 실행해 stdout "[!]" 문구로 실패 단계 확인 / (나) 다른 직원 PC에서 같은 exe 시험(이 PC 환경 문제인지) / (다) UAC 조작은 포기하고 관리자 실행만 유지 또는 되돌림.
+1. 포터블 서비스(UAC 창 조작) 실패 — 운영자 결정 대기. (가) 원인 확인은 끝남(위 '실패한 것'). 남은 후보: (나) 다른 직원 PC에서 같은 exe 시험(이 PC 환경 문제인지) / (다) UAC 조작은 포기하고 관리자 실행만 유지 또는 되돌림.
    설치 파일(MSI)·앱 안 설치는 만들지 않기로 함(포터블만, disable-installation=Y).
 2. 허용 화면에서 "수락 및 권한 상승" 단추를 뺌 — UAC 화면 조작이 필요하면 기사님 쪽 권한 상승 요청으로 되는지 시험 안 함.
 3. 직원 PC 두 대로 실제 원격 시험 — 고객 배포는 아직 안 함. 코드 서명 없음(NotSigned).
