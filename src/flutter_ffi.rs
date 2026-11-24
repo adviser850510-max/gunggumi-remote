@@ -2390,6 +2390,14 @@ pub fn main_is_installed() -> SyncReturn<bool> {
     SyncReturn(is_installed())
 }
 
+/// 궁구미 원격: 관리자 권한으로 실행 중인지(관리자 실행이면 설치 안내 카드를 숨김)
+pub fn main_is_elevated() -> SyncReturn<bool> {
+    #[cfg(windows)]
+    return SyncReturn(crate::platform::is_elevated(None).unwrap_or(false));
+    #[cfg(not(windows))]
+    return SyncReturn(false);
+}
+
 pub fn main_init_input_source() -> SyncReturn<()> {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     crate::keyboard::input_source::init_input_source();

@@ -491,6 +491,14 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           sed -i '/dpiAware/d' res/manifest.xml
+          # 궁구미 원격: 고객이 켤 때마다 관리자 권한(UAC "예")으로 실행 → 안쪽 프로그램도 관리자 권한을
+          # 물려받아 시작할 때 포터블 서비스가 켜짐(core_main.rs) → 기사님이 UAC 창도 조작 가능.
+          # RDGen "run as admin"과 같은 manifest 줄이지만, 바깥 exe(포터블 묶음)에만 넣는다.
+          # 안쪽 GunggumiRemote.exe·설치판(MSI)은 그대로(asInvoker) — 서비스 실행에 영향 없음.
+          sed -i '/<\/compatibility>/a \
+            <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo>' res/manifest.xml
+          cat res/manifest.xml
+          grep -q 'requireAdministrator' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/GunggumiRemote.exe

@@ -530,6 +530,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
     if (isWindows && !bind.isDisableInstallation()) {
       if (!bind.mainIsInstalled()) {
+        // 궁구미 원격: 관리자 권한으로 실행 중이면 UAC 문제가 없으므로 설치 안내를 띄우지 않음
+        if (bind.isIncomingOnly() && bind.mainIsElevated()) {
+          return Container();
+        }
         return buildInstallCard(
             "", bind.isOutgoingOnly() ? "" : "install_tip", "Install",
             () async {
